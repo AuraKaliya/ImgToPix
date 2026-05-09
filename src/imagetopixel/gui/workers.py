@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from core.models import ProcessingOptions, ProcessingResult
-from core.pixelizer import process_image
+from imagetopixel.core.models import ProcessingOptions, ProcessingResult
+from imagetopixel.core.pixelizer import process_image
 
 
 class ImageProcessWorker(QObject):

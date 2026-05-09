@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt, QThread, Slot
+from PySide6.QtCore import QSettings, QThread, Slot
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -20,13 +20,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from config.settings import APP_NAME, ORG_NAME
-from core.exporter import save_outputs
-from core.image_loader import SUPPORTED_IMAGE_FILTER
-from core.models import ProcessingOptions, ProcessingResult
-from core.preprocess import list_presets
-from gui.preview_panel import PreviewPanel
-from gui.workers import ImageProcessWorker
+from imagetopixel.config.settings import APP_NAME, ORG_NAME
+from imagetopixel.core.exporter import save_outputs
+from imagetopixel.core.image_loader import SUPPORTED_IMAGE_FILTER
+from imagetopixel.core.models import ProcessingOptions, ProcessingResult
+from imagetopixel.core.preprocess import list_presets
+from imagetopixel.gui.preview_panel import PreviewPanel
+from imagetopixel.gui.workers import ImageProcessWorker
 
 
 PADDING_LABELS = {
@@ -45,7 +45,7 @@ PRESET_LABELS = {
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ImageToPixel")
+        self.setWindowTitle(APP_NAME)
         self.resize(1380, 860)
         self.setAcceptDrops(True)
 
@@ -86,7 +86,9 @@ class MainWindow(QMainWindow):
 
         self.preview_checkbox = QCheckBox("同时保存放大预览图")
 
-        self.hint_label = QLabel("拖拽图片到窗口任意位置，或点击“导入图片”开始。支持生成 16 / 32 / 64 三种真像素图。")
+        self.hint_label = QLabel(
+            "拖拽图片到窗口任意位置，或点击“导入图片”开始。默认一次生成 16 / 32 / 64 三种真像素图。"
+        )
         self.hint_label.setWordWrap(True)
         self.hint_label.setObjectName("hintLabel")
 
@@ -238,16 +240,18 @@ class MainWindow(QMainWindow):
     @Slot()
     def open_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "选择图片", "", SUPPORTED_IMAGE_FILTER)
-        if not path:
-            return
-        self.load_image(Path(path))
+        if path:
+            self.load_image(Path(path))
 
     def load_image(self, path: Path) -> None:
         self.current_image_path = path
         if not self.output_dir_edit.text():
             self.output_dir_edit.setText(str(path.parent / "output"))
+
         self.process_button.setEnabled(True)
-        self.hint_label.setText(f"已载入：{path.name}。你可以调整补边模式和处理预设，结果会自动刷新。")
+        self.hint_label.setText(
+            f"已载入：{path.name}。你可以调整补边模式和处理预设，结果会自动刷新。"
+        )
         self.start_processing()
 
     @Slot()
@@ -266,9 +270,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_settings_changed(self) -> None:
-        if self.current_image_path is None:
-            return
-        self.start_processing()
+        if self.current_image_path is not None:
+            self.start_processing()
 
     @Slot()
     def start_processing(self) -> None:
@@ -283,8 +286,7 @@ class MainWindow(QMainWindow):
         self.save_button.setEnabled(False)
         self.statusBar().showMessage("处理中，请稍候...")
 
-        options = self.current_options()
-        worker = ImageProcessWorker(str(self.current_image_path), options)
+        worker = ImageProcessWorker(str(self.current_image_path), self.current_options())
         thread = QThread(self)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)

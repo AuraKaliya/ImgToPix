@@ -2,8 +2,8 @@ from pathlib import Path
 
 from PIL import Image
 
-from core.models import ProcessingOptions
-from core.pixelizer import process_image
+from imagetopixel.core.models import ProcessingOptions
+from imagetopixel.core.pixelizer import process_image
 
 
 def test_process_image_outputs_expected_sizes(tmp_path: Path) -> None:

@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
-from core.pixelizer import build_preview
+from imagetopixel.core.pixelizer import build_preview
 
 
 def pil_to_qpixmap(image: Image.Image) -> QPixmap:

@@ -5,3 +5,7 @@ __pycache__/
 output/
 dist/
 build/
+*.egg-info/
+.nuitka-cache/
+app.build/
+app.dist/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Image To Pixel"
+  short_description: "Run and maintain ImageToPixel as a GUI and CLI conversion tool."
+  default_prompt: "Use $image-to-pixel to convert images, run the GUI or CLI, and update the related docs."

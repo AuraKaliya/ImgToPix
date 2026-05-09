@@ -1,6 +1,6 @@
 from PIL import Image
 
-from core.square_pad import compute_padding, pad_to_square
+from imagetopixel.core.square_pad import compute_padding, pad_to_square
 
 
 def test_compute_padding_for_wide_image() -> None:

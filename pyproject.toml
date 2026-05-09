@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imagetopixel"
+version = "0.1.0"
+description = "Convert pseudo-pixel images into true 16x16, 32x32, and 64x64 pixel-art outputs."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.2.0",
+    "Pillow>=11.2.1",
+    "PySide6>=6.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+]
+build = [
+    "nuitka>=2.7.0",
+]
+
+[project.scripts]
+imagetopixel = "imagetopixel.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
