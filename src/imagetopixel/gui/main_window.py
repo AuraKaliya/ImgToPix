@@ -24,7 +24,7 @@ from imagetopixel.config.settings import APP_NAME, ORG_NAME
 from imagetopixel.core.exporter import save_outputs
 from imagetopixel.core.image_loader import SUPPORTED_IMAGE_FILTER
 from imagetopixel.core.models import ProcessingOptions, ProcessingResult
-from imagetopixel.core.preprocess import list_presets
+from imagetopixel.core.preprocess import algorithm_label, list_algorithms
 from imagetopixel.gui.preview_panel import PreviewPanel
 from imagetopixel.gui.workers import ImageProcessWorker
 
@@ -34,13 +34,6 @@ PADDING_LABELS = {
     "mirror": "镜像补边",
     "solid": "纯色补边",
 }
-
-PRESET_LABELS = {
-    "standard": "标准",
-    "sharper": "更锐利",
-    "smoother": "更平滑",
-}
-
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -79,21 +72,27 @@ class MainWindow(QMainWindow):
             self.padding_combo.addItem(label, value)
         self.padding_combo.currentIndexChanged.connect(self.on_settings_changed)
 
-        self.preset_combo = QComboBox()
-        for value in list_presets():
-            self.preset_combo.addItem(PRESET_LABELS[value], value)
-        self.preset_combo.currentIndexChanged.connect(self.on_settings_changed)
+        self.algorithm_combo = QComboBox()
+        for value in list_algorithms():
+            self.algorithm_combo.addItem(algorithm_label(value), value)
+        self.algorithm_combo.currentIndexChanged.connect(self.on_algorithm_changed)
 
         self.preview_checkbox = QCheckBox("同时保存放大预览图")
 
         self.hint_label = QLabel(
-            "拖拽图片到窗口任意位置，或点击“导入图片”开始。默认一次生成 16 / 32 / 64 三种真像素图。"
+            "拖拽图片到窗口任意位置，或点击“导入图片”开始。系统会先生成多个 16x16 母版候选，再同步预览 32 / 64 的放大结果。"
         )
         self.hint_label.setWordWrap(True)
         self.hint_label.setObjectName("hintLabel")
 
         self.original_panel = PreviewPanel("原图", "等待载入图片")
         self.square_panel = PreviewPanel("补成正方形", "导入图片后自动显示")
+        self.candidate_panels: dict[str, PreviewPanel] = {}
+        for value in list_algorithms():
+            self.candidate_panels[value] = PreviewPanel(
+                f"16 x 16 · {algorithm_label(value)}",
+                "生成后显示",
+            )
         self.output_16_panel = PreviewPanel("16 x 16", "生成后显示")
         self.output_32_panel = PreviewPanel("32 x 32", "生成后显示")
         self.output_64_panel = PreviewPanel("64 x 64", "生成后显示")
@@ -107,22 +106,30 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.output_button, 1, 3)
         controls_layout.addWidget(QLabel("补边模式"), 2, 0)
         controls_layout.addWidget(self.padding_combo, 2, 1)
-        controls_layout.addWidget(QLabel("处理预设"), 2, 2)
-        controls_layout.addWidget(self.preset_combo, 2, 3)
+        controls_layout.addWidget(QLabel("母版算法"), 2, 2)
+        controls_layout.addWidget(self.algorithm_combo, 2, 3)
         controls_layout.addWidget(self.preview_checkbox, 3, 0, 1, 2)
 
         left_column = QVBoxLayout()
         left_column.addWidget(self.original_panel, stretch=1)
         left_column.addWidget(self.square_panel, stretch=1)
 
-        right_grid = QGridLayout()
-        right_grid.addWidget(self.output_16_panel, 0, 0)
-        right_grid.addWidget(self.output_32_panel, 0, 1)
-        right_grid.addWidget(self.output_64_panel, 1, 0, 1, 2)
+        candidate_grid = QGridLayout()
+        for index, value in enumerate(list_algorithms()):
+            candidate_grid.addWidget(self.candidate_panels[value], 0, index)
+
+        output_grid = QGridLayout()
+        output_grid.addWidget(self.output_16_panel, 0, 0)
+        output_grid.addWidget(self.output_32_panel, 0, 1)
+        output_grid.addWidget(self.output_64_panel, 1, 0, 1, 2)
+
+        right_column = QVBoxLayout()
+        right_column.addLayout(candidate_grid, stretch=3)
+        right_column.addLayout(output_grid, stretch=4)
 
         preview_layout = QHBoxLayout()
         preview_layout.addLayout(left_column, stretch=4)
-        preview_layout.addLayout(right_grid, stretch=5)
+        preview_layout.addLayout(right_column, stretch=7)
 
         central = QWidget()
         root_layout = QVBoxLayout(central)
@@ -196,11 +203,11 @@ class MainWindow(QMainWindow):
             self.output_dir_edit.setText(output_dir)
 
         padding_mode = self.settings.value("padding_mode", "edge", str)
-        preset = self.settings.value("preset", "standard", str)
+        algorithm = self.settings.value("algorithm", "", str) or self.settings.value("preset", "majority", str)
         save_preview = self.settings.value("save_previews", False, bool)
 
         self.set_combo_by_value(self.padding_combo, padding_mode)
-        self.set_combo_by_value(self.preset_combo, preset)
+        self.set_combo_by_value(self.algorithm_combo, algorithm)
         self.preview_checkbox.setChecked(bool(save_preview))
 
         geometry = self.settings.value("geometry")
@@ -210,7 +217,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self.settings.setValue("output_dir", self.output_dir_edit.text())
         self.settings.setValue("padding_mode", self.padding_combo.currentData())
-        self.settings.setValue("preset", self.preset_combo.currentData())
+        self.settings.setValue("algorithm", self.algorithm_combo.currentData())
         self.settings.setValue("save_previews", self.preview_checkbox.isChecked())
         self.settings.setValue("geometry", self.saveGeometry())
         super().closeEvent(event)
@@ -250,7 +257,7 @@ class MainWindow(QMainWindow):
 
         self.process_button.setEnabled(True)
         self.hint_label.setText(
-            f"已载入：{path.name}。你可以调整补边模式和处理预设，结果会自动刷新。"
+            f"已载入：{path.name}。你可以调整补边模式并比较不同 16x16 母版算法，结果会自动刷新。"
         )
         self.start_processing()
 
@@ -265,13 +272,18 @@ class MainWindow(QMainWindow):
     def current_options(self) -> ProcessingOptions:
         return ProcessingOptions(
             padding_mode=self.padding_combo.currentData(),
-            preset=self.preset_combo.currentData(),
+            algorithm=self.algorithm_combo.currentData(),
         )
 
     @Slot()
     def on_settings_changed(self) -> None:
         if self.current_image_path is not None:
             self.start_processing()
+
+    @Slot()
+    def on_algorithm_changed(self) -> None:
+        if self.current_result is not None and self.current_result.variants:
+            self.apply_selected_variant()
 
     @Slot()
     def start_processing(self) -> None:
@@ -286,7 +298,11 @@ class MainWindow(QMainWindow):
         self.save_button.setEnabled(False)
         self.statusBar().showMessage("处理中，请稍候...")
 
-        worker = ImageProcessWorker(str(self.current_image_path), self.current_options())
+        worker = ImageProcessWorker(
+            str(self.current_image_path),
+            self.current_options(),
+            include_all_algorithms=True,
+        )
         thread = QThread(self)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
@@ -308,9 +324,14 @@ class MainWindow(QMainWindow):
         self.current_result = result
         self.original_panel.set_image(result.original)
         self.square_panel.set_image(result.squared)
-        self.output_16_panel.set_image(result.outputs[16], pixelated=True)
-        self.output_32_panel.set_image(result.outputs[32], pixelated=True)
-        self.output_64_panel.set_image(result.outputs[64], pixelated=True)
+        for algorithm, panel in self.candidate_panels.items():
+            variant = result.variants.get(algorithm)
+            if variant is None:
+                panel.clear("当前批次未生成")
+                continue
+            panel.set_image(variant.master, pixelated=True)
+
+        self.apply_selected_variant()
         self.save_button.setEnabled(True)
 
         left, top, right, bottom = result.padding
@@ -321,6 +342,29 @@ class MainWindow(QMainWindow):
             )
         else:
             self.statusBar().showMessage("生成完成。原图已是 1:1。", 6000)
+
+    def apply_selected_variant(self) -> None:
+        if self.current_result is None:
+            return
+
+        algorithm = self.algorithm_combo.currentData() or self.current_result.selected_algorithm
+        variant = self.current_result.variants.get(algorithm)
+        if variant is None:
+            return
+
+        self.current_result.selected_algorithm = algorithm
+        self.current_result.outputs = dict(variant.outputs)
+
+        self.output_16_panel.title_label.setText(f"16 x 16 · {algorithm_label(algorithm)}")
+        self.output_16_panel.set_image(variant.outputs[16], pixelated=True)
+        self.output_32_panel.set_image(variant.outputs[32], pixelated=True)
+        self.output_64_panel.set_image(variant.outputs[64], pixelated=True)
+
+        for key, panel in self.candidate_panels.items():
+            title = f"16 x 16 · {algorithm_label(key)}"
+            if key == algorithm:
+                title = f"{title} · 当前"
+            panel.title_label.setText(title)
 
     @Slot(str)
     def on_processing_failed(self, message: str) -> None:
