@@ -16,7 +16,7 @@ def pil_to_qpixmap(image: Image.Image) -> QPixmap:
 
 
 class PreviewPanel(QFrame):
-    def __init__(self, title: str, placeholder: str, parent=None) -> None:
+    def __init__(self, title: str, placeholder: str, parent=None, image_min_size: int = 220) -> None:
         super().__init__(parent)
         self.setObjectName("previewPanel")
         self.setFrameShape(QFrame.Shape.StyledPanel)
@@ -30,7 +30,7 @@ class PreviewPanel(QFrame):
 
         self.image_label = QLabel(placeholder)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setMinimumSize(220, 220)
+        self.image_label.setMinimumSize(image_min_size, image_min_size)
         self.image_label.setWordWrap(True)
         self.image_label.setObjectName("previewImage")
 

@@ -27,7 +27,7 @@ python bootstrap.py gui
 
 ```bash
 python bootstrap.py convert input.png --output output
-python bootstrap.py convert input.png --output output --algorithm majority
+python bootstrap.py convert input.png --output output --contour hybrid --algorithm majority
 python bootstrap.py convert input.png --output output --stdout-report full
 ```
 
@@ -36,7 +36,7 @@ python bootstrap.py convert input.png --output output --stdout-report full
 ```bash
 python bootstrap.py batch ./images --output ./output
 python bootstrap.py batch ./images --output ./output --recursive
-python bootstrap.py batch ./images --output ./output --recursive --algorithm median
+python bootstrap.py batch ./images --output ./output --recursive --contour coverage-35 --algorithm median
 python bootstrap.py batch ./images --output ./output --recursive --report-file reports/batch.json --summary-file reports/batch.md
 ```
 
@@ -58,11 +58,12 @@ python bootstrap.py docs usage --open
 
 - `--sizes 16 32 64`：指定导出尺寸列表
 - `--padding-mode edge|mirror|solid`：指定补边模式
-- `--algorithm majority|median|center`：选择 `16x16` 母版算法
+- `--contour coverage-50|coverage-35|center-hit|hybrid`：选择 `16x16` 轮廓方案
+- `--algorithm majority|median|center`：选择轮廓内的颜色采样算法
 - `--preset ...`：兼容旧参数，等同于 `--algorithm`
 - `--save-previews`：同时保存放大预览图
 
-说明：当前实现中，所有尺寸都从 `16x16` 母版生成；默认的 `32x32` 和 `64x64` 是母版的最近邻放大结果。
+说明：当前实现中，所有尺寸都从 `16x16` 主结果生成；默认的 `32x32` 和 `64x64` 是它的最近邻放大结果。
 
 ## 结构化输出
 

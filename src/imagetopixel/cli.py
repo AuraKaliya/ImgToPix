@@ -15,7 +15,7 @@ from imagetopixel.core.exporter import build_output_paths, save_outputs
 from imagetopixel.core.image_loader import SUPPORTED_EXTENSIONS, is_supported_image
 from imagetopixel.core.models import ProcessingOptions, TARGET_SIZES
 from imagetopixel.core.pixelizer import process_image
-from imagetopixel.core.preprocess import list_algorithms
+from imagetopixel.core.preprocess import list_algorithms, list_contours
 from imagetopixel.gui.main_window import run as run_gui
 
 
@@ -98,7 +98,13 @@ def add_processing_arguments(parser: argparse.ArgumentParser) -> None:
         dest="algorithm",
         choices=list_algorithms(),
         default="majority",
-        help="16x16 母版算法",
+        help="16x16 轮廓内的颜色算法",
+    )
+    parser.add_argument(
+        "--contour",
+        choices=list_contours(),
+        default="hybrid",
+        help="16x16 轮廓方案",
     )
     parser.add_argument(
         "--save-previews",
@@ -147,6 +153,7 @@ def current_options(args: argparse.Namespace) -> ProcessingOptions:
     return ProcessingOptions(
         padding_mode=args.padding_mode,
         algorithm=args.algorithm,
+        contour=args.contour,
         sizes=sizes,
     )
 
@@ -412,6 +419,7 @@ def handle_convert(args: argparse.Namespace) -> int:
             padding=list(result.padding),
             saved_files=[str(path.resolve()) for path in saved],
             algorithm=result.selected_algorithm,
+            contour=result.selected_contour,
             sizes=list(options.sizes),
         )
         payload = make_report_payload(
@@ -535,6 +543,7 @@ def handle_batch(args: argparse.Namespace) -> int:
                 padding=list(result.padding),
                 saved_files=[str(path.resolve()) for path in saved],
                 algorithm=result.selected_algorithm,
+                contour=result.selected_contour,
             )
             items.append(item)
             converted += 1
